@@ -1,0 +1,10 @@
+# Object files
+*.o
+
+# Input/output files
+*.in
+*.out
+
+# Executable 
+cloudIST
+cloudIST.dSYM/
