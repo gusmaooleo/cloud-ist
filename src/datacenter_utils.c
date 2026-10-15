@@ -256,10 +256,28 @@ static int apply_limit(int resource, size_t gigabytes) {
 }
 
 void spawn_vm_child(VM *vm, const char *working_directory, int cpu_limit_percent) {
-	if (apply_limit(RLIMIT_AS, vm->type->required.ram) != 0 ||
-			apply_limit(RLIMIT_FSIZE, vm->type->required.disk) != 0 ||
-			chdir(working_directory) != 0) {
-		static const char message[] = "cloudIST: failed to apply VM limits or working directory\n";
+	if (apply_limit(RLIMIT_AS, vm->type->required.ram) != 0) {
+#ifdef __APPLE__
+		int limit_error = errno;
+#endif
+		static const char message[] = "cloudIST: failed to apply RLIMIT_AS (RAM/address-space limit)\n";
+		(void)write(STDERR_FILENO, message, sizeof(message) - 1);
+#ifdef __APPLE__
+		if (limit_error == EINVAL) {
+			static const char hint[] = "cloudIST: macOS rejects memory limits below the process's existing "
+				"virtual address space; see the macOS example in EXEMPLOS.md\n";
+			(void)write(STDERR_FILENO, hint, sizeof(hint) - 1);
+		}
+#endif
+		_exit(126);
+	}
+	if (apply_limit(RLIMIT_FSIZE, vm->type->required.disk) != 0) {
+		static const char message[] = "cloudIST: failed to apply RLIMIT_FSIZE (maximum file size)\n";
+		(void)write(STDERR_FILENO, message, sizeof(message) - 1);
+		_exit(126);
+	}
+	if (chdir(working_directory) != 0) {
+		static const char message[] = "cloudIST: failed to enter VM working directory\n";
 		(void)write(STDERR_FILENO, message, sizeof(message) - 1);
 		_exit(126);
 	}
